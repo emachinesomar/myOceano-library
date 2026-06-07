@@ -256,11 +256,13 @@ export function SearchBar() {
           </button>
         )}
 
-        <div className="hidden md:flex items-center gap-1 px-2 border-l border-slate-100">
-          <OperatorButton op="AND" active={hasOperator(query, "AND")} onClick={() => handleOperator("AND")} />
-          <OperatorButton op="OR" active={hasOperator(query, "OR")} onClick={() => handleOperator("OR")} />
-          <OperatorButton op="NOT" active={hasOperator(query, "NOT")} onClick={() => handleOperator("NOT")} />
-        </div>
+        {query && (
+          <div className="hidden md:flex items-center gap-1 px-2 border-l border-slate-100 transition-opacity duration-100">
+            <OperatorButton op="AND" active={hasOperator(query, "AND")} onClick={() => handleOperator("AND")} />
+            <OperatorButton op="OR" active={hasOperator(query, "OR")} onClick={() => handleOperator("OR")} />
+            <OperatorButton op="NOT" active={hasOperator(query, "NOT")} onClick={() => handleOperator("NOT")} />
+          </div>
+        )}
 
         <div className="relative shrink-0" ref={helpRef}>
           <button
