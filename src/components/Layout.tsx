@@ -100,6 +100,10 @@ export function Layout({ children }: LayoutProps) {
           <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium text-xs border border-slate-200/80">
             {statusLabel}
           </span>
+          {/* Mobile: show results count as a dot indicator */}
+          {searchResults.length > 0 && (
+            <span className="md:hidden w-2 h-2 rounded-full bg-cyan-500" title={`${searchResults.length} resultados`} />
+          )}
           <button
             onClick={() => setSettingsOpen(true)}
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -118,14 +122,15 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
         {sidebarOpen && (
-          <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0 border-r border-slate-800 shadow-xl z-10">
+          <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0 border-r border-slate-800 shadow-xl z-10 absolute inset-y-0 left-0">
             <Sidebar />
           </aside>
         )}
 
-        <div className="w-80 xl:w-96 shrink-0 border-r border-slate-200/80 bg-white flex flex-col shadow-sm">
+        {/* Results panel — hidden on mobile, side panel on md+ */}
+        <div className="hidden md:flex w-72 lg:w-80 xl:w-96 shrink-0 border-r border-slate-200/80 bg-white flex-col shadow-sm">
           <div className="px-4 py-3 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-white">
             <p className="text-xs font-semibold text-slate-700 tracking-tight">Resultados</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -165,7 +170,7 @@ export function Layout({ children }: LayoutProps) {
           )}
         </div>
 
-        <main className="flex-1 min-w-0 overflow-auto p-3 sm:p-4 bg-slate-100/80">
+        <main className="flex-1 min-w-0 overflow-hidden p-3 sm:p-4 bg-slate-100/80">
           {searchResults.length === 0 && !selectedDocumentId && searchError ? (
             <div className="h-full flex flex-col items-center justify-center text-red-600">
               <div className="max-w-md text-center bg-white rounded-2xl border border-red-100 p-8 shadow-sm">
