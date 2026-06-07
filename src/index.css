@@ -1,0 +1,36 @@
+@reference "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Resaltado para los resultados de búsqueda (Tantivy snippets) */
+mark {
+  @apply bg-yellow-200 text-black font-semibold rounded px-0.5;
+}
+
+/* Custom highlight colors per term in DocumentViewer */
+.mark-1 {
+  @apply bg-yellow-200 text-black font-semibold rounded px-0.5;
+}
+.mark-2 {
+  @apply bg-cyan-200 text-black font-semibold rounded px-0.5;
+}
+.mark-3 {
+  @apply bg-green-200 text-black font-semibold rounded px-0.5;
+}
+.mark-4 {
+  @apply bg-purple-200 text-black font-semibold rounded px-0.5;
+}
+
+/* Custom overrides and utilities for Ocean Library */
+:root {
+  --app-bg: #f8fafc;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800;
+}
+
+.app-container {
+  @apply min-h-screen flex flex-col;
+}
