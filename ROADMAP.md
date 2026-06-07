@@ -18,35 +18,31 @@ Target: condensed library of world scriptures with instant boolean search, hiera
 | 4 — Split UI | ✅ | Árbol jerárquico, layout dividido, sidebar simplificada |
 | 5 — Polish | ✅ | Skeletons, errores visibles, SettingsPanel, tests Rust |
 
-### Fase 2 — En planificación 🔄
+### Fase 2 — En progreso 🔄
 
-**Objetivo:** que al buscar una palabra o frase el usuario **vea el contenido que busca** — con contexto, resaltado y scroll al match correcto — no solo el nombre del archivo ni un fragmento de 80 caracteres.
+| Stage | Estado | Descripción breve |
+|-------|--------|-------------------|
+| 6 — Previews legibles | ✅ | Snippets HTML en árbol, `<mark>` unificado, line-clamp, fade, accesibilidad |
+| 7 — Visor híbrido | 🔲 | Snippet primero, documento después (pendiente) |
+| 8 — Offset correcto | 🔲 | Scroll al match correcto (pendiente) |
+| 9 — Chunking | 🔲 | Indexación por fragmentos (pendiente) |
+| 10 — Pulido | 🔲 | Navegación matches, copiar cita, PDFs (pendiente) |
 
-**Problema diagnosticado (2025-06):**
-
-| Capa | Qué pasa hoy | Por qué falla la experiencia |
-|------|--------------|------------------------------|
-| Backend | Tantivy genera snippets de hasta 2000 chars con `<mark>` | El contenido rico **existe** pero no llega bien a la UI |
-| `SearchBar` | Dropdown con snippet HTML | `line-clamp-2` → solo 2 líneas visibles |
-| `ResultTree` | Preview bajo cada match | `stripHtml()` + `truncate(..., 80)` → pierde resaltado y contexto |
-| `uiStore` | Guarda `selectedSnippet` al hacer clic | `DocumentViewer` **no lo lee** |
-| `DocumentViewer` | Carga el archivo **entero** vía `read_document` | PDFs largos = muro de texto; scroll al **primer** match del doc, no al del resultado elegido |
-
-**Modelo objetivo (estilo Ocean 1.0):**
-
-```
-Buscar → preview legible con resaltado → clic → snippet ampliado del match
-                                              → opción de documento completo
-                                              → scroll al match concreto
-```
+**UX fixes completados:**
+- ✅ Help popover sin parpadeo (backdrop condicional, stopPropagation)
+- ✅ Operadores solo visibles con query no vacío (sin layout flicker)
+- ✅ Sidecar errors silenciados (es opcional)
+- ✅ `cleanQuery()` elimina operadores trailing
+- ✅ `friendlyError()` traduce errores al español
+- ✅ Mensaje amigable cuando no hay resultados
 
 ---
 
-## Stage 6 — Previews legibles en resultados
+## Stage 6 — Previews legibles en resultados ✅
 
-**Opción A del análisis.** Solo frontend + CSS. Sin cambios en Rust.
+**Completado.** Solo frontend + CSS. Sin cambios en Rust.
 
-**Duración estimada:** ~2 h · **Riesgo:** bajo · **Dependencias:** ninguna
+**Duración real:** ~2 h · **Riesgo:** bajo · **Dependencias:** ninguna
 
 ### Contexto
 
@@ -57,15 +53,15 @@ El backend ya devuelve `snippet` con etiquetas `<mark>` generadas por `SnippetGe
 
 Esta etapa no cambia **qué** se busca ni **cómo** se indexa; solo recupera información que ya tenemos.
 
-### Tasks
+### Tasks completados
 
-| # | Task | Archivo(s) | Detalle |
-|---|------|------------|---------|
-| 6.1 | Mostrar snippet HTML en `ResultTree` | `ResultTree.tsx` | Eliminar `stripHtml` y `truncate(..., 80)`. Renderizar `match.snippet` con `dangerouslySetInnerHTML`. Mantener `line-clamp-4` o `line-clamp-6` (configurable) para no romper el layout del árbol. Asegurar que los estilos `mark` de `index.css` aplican dentro del panel (herencia CSS). |
-| 6.2 | Ampliar preview en dropdown de `SearchBar` | `SearchBar.tsx` | Cambiar `line-clamp-2` → `line-clamp-4` o quitar clamp y usar `max-h-24 overflow-hidden` con gradiente fade al final. Mostrar ruta padre + nombre de archivo (ya existe). Opcional: badge con longitud aproximada del snippet. |
-| 6.3 | Unificar estilos de `<mark>` en panel de resultados | `index.css`, `ResultTree.tsx` | Verificar contraste en fondo blanco (`ResultTree`) y fondo oscuro si algún snippet aparece en sidebar. Los snippets de Tantivy usan `<mark>` sin clase; el visor usa `.mark-1`…`.mark-4`. Decidir: dejar amarillo Tantivy en previews y colores por término solo en visor completo. |
-| 6.4 | Tooltip o expand al hover (opcional) | `ResultTree.tsx` | Si el snippet sigue truncado visualmente, mostrar popover con snippet completo al hover o clic en icono “expandir”. Evita scroll infinito en el árbol con muchos matches. |
-| 6.5 | Accesibilidad del HTML inyectado | `ResultTree.tsx`, `SearchBar.tsx` | Los snippets vienen de Tantivy sobre contenido local indexado por el usuario (confianza local). Documentar en comentario que `dangerouslySetInnerHTML` es intencional. No interpolar query del usuario dentro del HTML. |
+| # | Task | Archivo(s) | Estado |
+|---|------|------------|--------|
+| 6.1 | Mostrar snippet HTML en `ResultTree` | `ResultTree.tsx` | ✅ `dangerouslySetInnerHTML`, `line-clamp-6` |
+| 6.2 | Ampliar preview en dropdown de `SearchBar` | `SearchBar.tsx` | ✅ `line-clamp-4`, gradiente fade |
+| 6.3 | Unificar estilos de `<mark>` | `index.css` | ✅ `<mark>` amarillo en previews, `.mark-1` a `.mark-4` en visor |
+| 6.4 | Tooltip o expand al hover | `ResultTree.tsx` | ✅ snippet-fade con CSS variable |
+| 6.5 | Accesibilidad del HTML inyectado | `ResultTree.tsx`, `SearchBar.tsx` | ✅ Comentarios documentando `dangerouslySetInnerHTML` intencional |
 
 ### Archivos tocados
 
@@ -77,10 +73,10 @@ src/index.css                   # estilos mark en contexto árbol
 
 ### Criterios de éxito
 
-- [ ] Cada nodo hoja del árbol muestra al menos **4–6 líneas** de contexto con la palabra buscada **resaltada en amarillo** (`<mark>`).
-- [ ] El dropdown de búsqueda muestra más contexto que antes (mínimo el doble de líneas visibles).
-- [ ] No hay regresión en agrupación religión → libro → capítulo.
-- [ ] `npx tsc --noEmit` pasa sin errores.
+- [x] Cada nodo hoja del árbol muestra al menos **4–6 líneas** de contexto con la palabra buscada **resaltada en amarillo** (`<mark>`).
+- [x] El dropdown de búsqueda muestra más contexto que antes (mínimo el doble de líneas visibles).
+- [x] No hay regresión en agrupación religión → libro → capítulo.
+- [x] `npx tsc --noEmit` pasa sin errores.
 
 ### Qué NO resuelve esta etapa
 
@@ -349,4 +345,4 @@ Colores por término, skeletons, errores visibles, `SettingsPanel`, tests Rust. 
 
 ---
 
-*Última actualización: 2025-06-07 — Fase 2 añadida tras análisis de visibilidad del contenido buscado.*
+*Última actualización: 2025-06-07 — Stage 6 completado, Fase 2 en progreso.*
