@@ -21,10 +21,13 @@ mark {
   @apply bg-violet-200 text-violet-950 font-semibold rounded px-0.5 ring-1 ring-violet-300/60;
 }
 
-/* Preview de snippet en árbol y dropdown */
+/* Preview de snippet en árbol y dropdown — HTML injection from Tantivy snippets
+   is intentional: snippets are indexed content, not user-authored HTML.
+   The query string is never interpolated inside dangerouslySetInnerHTML. */
 .snippet-preview {
   @apply text-slate-600 leading-relaxed;
   word-break: break-word;
+  --snippet-fade-bg: white;
 }
 
 .snippet-preview mark {
@@ -72,7 +75,7 @@ body {
   @apply bg-slate-400;
 }
 
-/* Fade al truncar snippet */
+/* Fade al truncar snippet — gradiente adaptivo al fondo de la tarjeta */
 .snippet-fade {
   position: relative;
 }
@@ -84,6 +87,6 @@ body {
   left: 0;
   right: 0;
   height: 1.5rem;
-  background: linear-gradient(to bottom, transparent, white);
+  background: linear-gradient(to bottom, transparent, var(--snippet-fade-bg, white));
   pointer-events: none;
 }

@@ -289,8 +289,14 @@ export function ResultTree({ results, onSelect, selectedPath }: ResultTreeProps)
                                           {match.verse && (
                                             <p className="text-[10px] text-slate-400 mb-1.5">v. {match.verse}</p>
                                           )}
+                                          {/*
+                                            Accessibility note: dangerouslySetInnerHTML is intentional here.
+                                            Snippets come from Tantivy's indexed content (not user-authored HTML).
+                                            The search query is never injected inside the HTML — Tantivy wraps
+                                            matched terms in <mark> tags during snippet generation.
+                                          */}
                                           <div
-                                            className="snippet-preview snippet-preview--compact line-clamp-5 snippet-fade relative"
+                                            className="snippet-preview snippet-preview--compact line-clamp-6 snippet-fade relative"
                                             dangerouslySetInnerHTML={{ __html: match.snippet }}
                                           />
                                         </button>

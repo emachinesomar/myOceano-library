@@ -259,6 +259,8 @@ export function DocumentViewer() {
                 </span>
               )}
             </div>
+            {/* Accessibility: dangerouslySetInnerHTML is intentional — snippet is Tantivy-indexed
+                content with <mark> tags. Query is never interpolated inside the HTML. */}
             <div
               className="snippet-preview snippet-preview--expanded rounded-xl border border-cyan-200/80 bg-gradient-to-br from-cyan-50/80 to-white p-5 shadow-sm text-slate-700 leading-relaxed whitespace-pre-wrap"
               dangerouslySetInnerHTML={{ __html: selectedSnippet }}
@@ -283,6 +285,8 @@ export function DocumentViewer() {
         ) : documentContent && paragraphs.length > 0 ? (
           <div className="max-w-3xl mx-auto prose prose-slate max-w-none">
             {paragraphs.map((p, idx) => (
+              /* Accessibility: dangerouslySetInnerHTML is intentional — content is
+                  highlightContent() output with <mark> class wrappers around query terms. */
               <div
                 key={idx}
                 ref={idx === targetParagraphIndex ? targetRef : undefined}
