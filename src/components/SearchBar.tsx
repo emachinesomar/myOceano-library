@@ -20,6 +20,27 @@ const HELP_SYNTAX = [
   { syntax: "paz*", desc: "prefijo / comodín" },
 ] as const;
 
+/** Strip trailing boolean operators that would cause a Tantivy parse error. */
+function cleanQuery(raw: string): string {
+  return raw
+    .replace(/\s+/g, " ")
+    .replace(/\s+(AND|OR|NOT)\s*$/i, "")
+    .trim();
+}
+
+/** Convert raw error messages to user-friendly text. */
+function friendlyError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes("syntax error")) return "Sintaxis inválida. Revisa los operadores.";
+  if (lower.includes("folder does not exist") || lower.includes("no folder"))
+    return "Escanea una carpeta antes de buscar.";
+  if (lower.includes("field not found")) return "Índice no listo. Escanea una carpeta primero.";
+  if (lower.includes("connection refused") || lower.includes("embed_chunks"))
+    return "Búsqueda semántica no disponible.";
+  if (lower.includes("timed out")) return "Búsqueda muy lenta. Intenta con menos términos.";
+  return raw.length > 100 ? raw.slice(0, 97) + "..." : raw;
+}
+
 function applyOperator(query: string, op: BooleanOperator): string {
   const trimmed = query.replace(/\s+$/, "");
   const prefix = trimmed.length > 0 ? " " : "";
@@ -86,12 +107,13 @@ export function SearchBar() {
 
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const setSearchResults = useUIStore((s) => s.setSearchResults);
-  const searchResults = useUIStore((s) => s.searchResults);
   const setSearchOffset = useUIStore((s) => s.setSearchOffset);
   const setSearchHasMore = useUIStore((s) => s.setSearchHasMore);
   const setSearchError = useUIStore((s) => s.setSearchError);
   const searchError = useUIStore((s) => s.searchError);
+  const searchResults = useUIStore((s) => s.searchResults);
 
+  // Ctrl+K focus
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -104,8 +126,10 @@ export function SearchBar() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  useEffect(() => {
-    if (!query.trim()) {
+  // Actual search logic — extracted so both debounce and search button can call it
+  const executeSearch = async (q: string) => {
+    const cleaned = cleanQuery(q);
+    if (!cleaned) {
       setSearchResults([]);
       setSearchOffset(0);
       setSearchHasMore(false);
@@ -113,41 +137,54 @@ export function SearchBar() {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setSearchQuery(query);
-      setSearching(true);
-      setSearchError(null);
-      setNoFolder(false);
+    setSearchQuery(cleaned);
+    setSearching(true);
+    setSearchError(null);
+    setNoFolder(false);
 
-      try {
-        const folderPath = localStorage.getItem("currentFolder") || "";
-        if (!folderPath) {
-          setNoFolder(true);
-          setSearchResults([]);
-          setSearching(false);
-          return;
-        }
-
-        const raw = await invoke<string>("full_text_search", {
-          query,
-          folderPath,
-          offset: 0,
-        });
-        const parsed: SearchPayload = JSON.parse(raw || "{}");
-        const list = parsed.results ?? [];
-        setSearchResults(list);
-        setSearchHasMore(parsed.hasMore ?? false);
-        setSearchOffset(0);
-        setSearchError(null);
-      } catch (error) {
-        setSearchError(error instanceof Error ? error.message : String(error));
+    try {
+      const folderPath = localStorage.getItem("currentFolder") || "";
+      if (!folderPath) {
+        setNoFolder(true);
+        setSearchResults([]);
+        setSearching(false);
+        return;
       }
-      setSearching(false);
-    }, 300);
 
+      const raw = await invoke<string>("full_text_search", {
+        query: cleaned,
+        folderPath,
+        offset: 0,
+      });
+      const parsed: SearchPayload = JSON.parse(raw || "{}");
+      const list = parsed.results ?? [];
+      setSearchResults(list);
+      setSearchHasMore(parsed.hasMore ?? false);
+      setSearchOffset(0);
+      setSearchError(null);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : String(error));
+    }
+    setSearching(false);
+  };
+
+  // Debounced search on query change
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearchOffset(0);
+      setSearchHasMore(false);
+      setNoFolder(false);
+      setSearchError(null);
+      return;
+    }
+
+    const timer = setTimeout(() => executeSearch(query), 300);
     return () => clearTimeout(timer);
-  }, [query, setSearchQuery, setSearchResults, setSearchOffset, setSearchHasMore, setSearchError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
+  // Click outside to close help
   useEffect(() => {
     if (!showHelp) return;
     const handler = (e: MouseEvent) => {
@@ -169,33 +206,50 @@ export function SearchBar() {
     }, 0);
   };
 
+  const handleSearchClick = () => {
+    executeSearch(query);
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      executeSearch(query);
+    }
+  };
+
   const handleClear = () => {
     setQuery("");
+    setSearchError(null);
     inputRef.current?.focus();
   };
 
   return (
     <div className="relative w-full">
       <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/15 transition-all">
-        <svg
-          className="w-5 h-5 text-slate-400 ml-3.5 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+        {/* Search icon — clickable, triggers search */}
+        <button
+          type="button"
+          onClick={handleSearchClick}
+          aria-label="Buscar"
+          className="p-2 ml-2 rounded-lg text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors shrink-0"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
+          <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </button>
 
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Buscar en tus documentos…"
           className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
         />
@@ -272,12 +326,12 @@ export function SearchBar() {
       )}
 
       {searchError && (
-        <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between gap-2">
-          <span className="text-xs">{searchError}</span>
+        <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center justify-between gap-2">
+          <span className="text-xs">{friendlyError(searchError)}</span>
           <button
             type="button"
             onClick={() => setSearchError(null)}
-            className="text-red-400 hover:text-red-600 shrink-0"
+            className="text-amber-400 hover:text-amber-600 shrink-0"
             aria-label="Cerrar error"
           >
             ×
