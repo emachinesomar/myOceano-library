@@ -184,16 +184,20 @@ export function SearchBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // Click outside to close help
+  // Click outside to close help — use pointerdown to avoid race condition with toggle click
   useEffect(() => {
     if (!showHelp) return;
-    const handler = (e: MouseEvent) => {
-      if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
-        setShowHelp(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    // Delay adding listener so the opening click doesn't immediately close it
+    const timer = setTimeout(() => {
+      const handler = (e: PointerEvent) => {
+        if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
+          setShowHelp(false);
+        }
+      };
+      document.addEventListener("pointerdown", handler);
+      return () => document.removeEventListener("pointerdown", handler);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [showHelp]);
 
   const handleOperator = (op: BooleanOperator) => {
@@ -277,32 +281,64 @@ export function SearchBar() {
             onClick={() => setShowHelp((prev) => !prev)}
             aria-label="Ayuda de sintaxis"
             aria-expanded={showHelp}
-            className="mx-2 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-700 hover:bg-cyan-50 transition-colors text-sm font-medium"
+            className={cn(
+              "mx-2 w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-sm font-medium",
+              showHelp
+                ? "text-cyan-700 bg-cyan-50"
+                : "text-slate-400 hover:text-cyan-700 hover:bg-cyan-50"
+            )}
           >
             ?
           </button>
 
-          {showHelp && (
-            <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-xl z-[60] overflow-hidden">
-              <div className="p-3 border-b border-slate-100 bg-slate-50">
-                <p className="text-xs font-semibold text-slate-700">Sintaxis de búsqueda</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Ctrl+K para enfocar la barra</p>
+          {/* Backdrop + Popover */}
+          <div
+            className={cn(
+              "fixed inset-0 z-[59] transition-opacity duration-150",
+              showHelp ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            onClick={() => setShowHelp(false)}
+          />
+          <div
+            className={cn(
+              "absolute top-full right-0 mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-2xl z-[60] overflow-hidden transition-all duration-150 origin-top-right",
+              showHelp
+                ? "opacity-100 scale-100 translate-y-0"
+                : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
+            )}
+          >
+            <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-cyan-100 flex items-center justify-center">
+                  <svg className="w-3.5 h-3.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Sintaxis de búsqueda</p>
+                  <p className="text-[10px] text-slate-400">Usa operadores para refinar</p>
+                </div>
               </div>
-              <ul className="p-2">
-                {HELP_SYNTAX.map((item) => (
-                  <li
-                    key={item.syntax}
-                    className="flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-slate-50"
-                  >
-                    <code className="font-mono text-[11px] text-cyan-800 bg-cyan-50 px-1.5 py-0.5 rounded shrink-0">
-                      {item.syntax}
-                    </code>
-                    <span className="text-xs text-slate-500 leading-snug">{item.desc}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
-          )}
+            <ul className="p-1.5">
+              {HELP_SYNTAX.map((item) => (
+                <li
+                  key={item.syntax}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors group"
+                >
+                  <code className="font-mono text-[11px] text-cyan-800 bg-cyan-50 border border-cyan-100 px-2 py-0.5 rounded-md shrink-0 font-medium group-hover:bg-cyan-100 transition-colors">
+                    {item.syntax}
+                  </code>
+                  <span className="text-[11px] text-slate-500 leading-snug">{item.desc}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/80">
+              <p className="text-[10px] text-slate-400 text-center">
+                Presiona <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-medium">Ctrl+K</kbd> para enfocar
+              </p>
+            </div>
+          </div>
         </div>
 
         <kbd className="hidden lg:inline-flex mr-3 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded">
