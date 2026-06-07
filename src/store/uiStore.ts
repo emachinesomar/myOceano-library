@@ -10,6 +10,8 @@ export interface SearchResult {
   verse: string;
 }
 
+export type DocumentViewMode = "snippet" | "full";
+
 interface UIStore {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -25,10 +27,11 @@ interface UIStore {
   setSelectedDocumentId: (id: string | null) => void;
   selectedSnippet: string | null;
   setSelectedSnippet: (snippet: string | null) => void;
-  // Stage 4 — search results for ResultTree
+  documentViewMode: DocumentViewMode;
+  setDocumentViewMode: (mode: DocumentViewMode) => void;
+  selectSearchResult: (result: SearchResult, query: string) => void;
   searchResults: SearchResult[];
   setSearchResults: (results: SearchResult[]) => void;
-  // Stage 2 — full document viewer state
   documentContent: string | null;
   documentMatchOffset: number | null;
   documentLoading: boolean;
@@ -38,6 +41,12 @@ interface UIStore {
   setDocumentLoading: (loading: boolean) => void;
   setDocumentError: (error: string | null) => void;
   resetDocument: () => void;
+  scanMessage: string | null;
+  scanError: string | null;
+  indexedFileCount: number;
+  setScanMessage: (message: string | null) => void;
+  setScanError: (error: string | null) => void;
+  setIndexedFileCount: (count: number) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -55,6 +64,15 @@ export const useUIStore = create<UIStore>((set) => ({
   setSelectedDocumentId: (id) => set({ selectedDocumentId: id }),
   selectedSnippet: null,
   setSelectedSnippet: (snippet) => set({ selectedSnippet: snippet }),
+  documentViewMode: "full",
+  setDocumentViewMode: (mode) => set({ documentViewMode: mode }),
+  selectSearchResult: (result, query) =>
+    set({
+      selectedDocumentId: result.path,
+      selectedSnippet: result.snippet,
+      searchQuery: query,
+      documentViewMode: "snippet",
+    }),
   searchResults: [],
   setSearchResults: (results) => set({ searchResults: results }),
   documentContent: null,
@@ -72,4 +90,10 @@ export const useUIStore = create<UIStore>((set) => ({
       documentLoading: false,
       documentError: null,
     }),
+  scanMessage: null,
+  scanError: null,
+  indexedFileCount: 0,
+  setScanMessage: (message) => set({ scanMessage: message }),
+  setScanError: (error) => set({ scanError: error }),
+  setIndexedFileCount: (count) => set({ indexedFileCount: count }),
 }));

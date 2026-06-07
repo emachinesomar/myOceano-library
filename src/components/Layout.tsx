@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useUIStore, type SearchResult } from "../store/uiStore";
 import { Sidebar } from "./Sidebar";
 import { SearchBar } from "./SearchBar";
@@ -9,6 +10,14 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+const PAGE_SIZE = 20;
+
+interface SearchPayload {
+  results: SearchResult[];
+  hasMore: boolean;
+  offset: number;
+}
+
 export function Layout({ children }: LayoutProps) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
@@ -16,100 +25,114 @@ export function Layout({ children }: LayoutProps) {
   const selectedDocumentId = useUIStore((s) => s.selectedDocumentId);
   const searchQuery = useUIStore((s) => s.searchQuery);
   const searchError = useUIStore((s) => s.searchError);
+  const searchHasMore = useUIStore((s) => s.searchHasMore);
+  const searchOffset = useUIStore((s) => s.searchOffset);
+  const setSearchResults = useUIStore((s) => s.setSearchResults);
+  const setSearchHasMore = useUIStore((s) => s.setSearchHasMore);
+  const setSearchOffset = useUIStore((s) => s.setSearchOffset);
+  const setSearchError = useUIStore((s) => s.setSearchError);
+  const indexedFileCount = useUIStore((s) => s.indexedFileCount);
+  const selectSearchResult = useUIStore((s) => s.selectSearchResult);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const handleTreeSelect = (result: SearchResult) => {
-    useUIStore.getState().setSelectedDocumentId(result.path);
-    useUIStore.getState().setSearchQuery(searchQuery);
-    useUIStore.getState().setSelectedSnippet(result.snippet);
+    selectSearchResult(result, searchQuery);
   };
 
+  const handleLoadMore = async () => {
+    if (loadingMore || !searchQuery.trim()) return;
+    setLoadingMore(true);
+    try {
+      const folderPath = localStorage.getItem("currentFolder") || "";
+      const nextOffset = searchOffset + PAGE_SIZE;
+      const raw = await invoke<string>("full_text_search", {
+        query: searchQuery,
+        folderPath,
+        offset: nextOffset,
+      });
+      const parsed: SearchPayload = JSON.parse(raw || "{}");
+      const list = parsed.results ?? [];
+      setSearchResults([...searchResults, ...list]);
+      setSearchHasMore(parsed.hasMore ?? false);
+      setSearchOffset(nextOffset);
+      setSearchError(null);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : String(error));
+    }
+    setLoadingMore(false);
+  };
+
+  const statusLabel =
+    searchResults.length > 0
+      ? `${searchResults.length} resultado${searchResults.length !== 1 ? "s" : ""}`
+      : indexedFileCount > 0
+        ? `${indexedFileCount} docs indexados`
+        : "Listo";
+
   return (
-    <div className="flex flex-col h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Top Bar */}
-      <header className="h-16 flex items-center gap-3 px-4 bg-white border-b border-slate-200 shadow-sm flex-shrink-0 z-10">
-        {/* Sidebar toggle + folder picker */}
+    <div className="flex flex-col h-screen bg-slate-100 text-slate-900">
+      <header className="h-14 flex items-center gap-2 px-3 bg-white/90 backdrop-blur border-b border-slate-200/80 flex-shrink-0 z-20">
         <button
           onClick={toggleSidebar}
-          className="p-2 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
-          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          className="p-2 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+          aria-label={sidebarOpen ? "Ocultar panel lateral" : "Mostrar panel lateral"}
         >
-          <svg
-            className="w-5 h-5 text-slate-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
+          <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white shadow-sm">
             O
           </div>
-          <span className="font-semibold text-sm text-slate-700 hidden sm:inline">
+          <span className="font-semibold text-sm text-slate-800 hidden sm:inline tracking-tight">
             Ocean Library
           </span>
         </div>
 
-        {/* SearchBar */}
-        <div className="flex-1 max-w-2xl mx-4">
+        <div className="flex-1 max-w-3xl mx-2 min-w-0">
           <SearchBar />
         </div>
 
-        {/* Status badge */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 font-medium text-xs">
-            {searchResults.length > 0 ? `${searchResults.length} results` : "Ready"}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium text-xs border border-slate-200/80">
+            {statusLabel}
           </span>
           <button
             onClick={() => setSettingsOpen(true)}
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
-            aria-label="Open settings"
+            aria-label="Ajustes"
           >
-            <svg
-              className="w-5 h-5 text-slate-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
               />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
         </div>
       </header>
 
-      {/* Body: sidebar overlay + split panel */}
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar overlay (dark, collapsible) */}
         {sidebarOpen && (
-          <aside className="w-72 bg-slate-900 text-white flex flex-col flex-shrink-0 border-r border-slate-700">
+          <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0 border-r border-slate-800 shadow-xl z-10">
             <Sidebar />
           </aside>
         )}
 
-        {/* Left panel: ResultTree */}
-        <div className="w-80 flex-shrink-0 border-r border-slate-200 bg-white overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-slate-200 bg-slate-50">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Results</p>
+        <div className="w-80 xl:w-96 shrink-0 border-r border-slate-200/80 bg-white flex flex-col shadow-sm">
+          <div className="px-4 py-3 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-white">
+            <p className="text-xs font-semibold text-slate-700 tracking-tight">Resultados</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {searchResults.length > 0
+                ? "Agrupados por tradición y libro"
+                : "Busca para explorar tu biblioteca"}
+            </p>
           </div>
           <div className="flex-1 min-h-0">
             <ResultTree
@@ -118,38 +141,45 @@ export function Layout({ children }: LayoutProps) {
               selectedPath={selectedDocumentId}
             />
           </div>
+          {searchHasMore && searchResults.length > 0 && (
+            <div className="p-3 border-t border-slate-200/80 bg-slate-50">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="w-full px-3 py-2 text-xs font-medium text-cyan-800 bg-white border border-cyan-200 rounded-lg hover:bg-cyan-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loadingMore ? (
+                  <>
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Cargando…
+                  </>
+                ) : (
+                  "Cargar más resultados"
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Right panel: children (DocumentViewer) */}
-        <main className="flex-1 min-w-0 overflow-auto p-4">
+        <main className="flex-1 min-w-0 overflow-auto p-3 sm:p-4 bg-slate-100/80">
           {searchResults.length === 0 && !selectedDocumentId && searchError ? (
-            <div className="flex flex-col items-center justify-center h-full text-red-500">
-              <svg
-                className="w-12 h-12 mb-3 text-red-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"
-                />
-              </svg>
-              <p className="text-lg font-medium mb-1">Search error</p>
-              <p className="text-sm text-red-400 max-w-md text-center">
-                {searchError}
-              </p>
+            <div className="h-full flex flex-col items-center justify-center text-red-600">
+              <div className="max-w-md text-center bg-white rounded-2xl border border-red-100 p-8 shadow-sm">
+                <p className="text-lg font-semibold mb-2">Error de búsqueda</p>
+                <p className="text-sm text-red-500/90">{searchError}</p>
+              </div>
             </div>
           ) : (
             children
           )}
         </main>
       </div>
-      {settingsOpen && (
-        <SettingsPanel onClose={() => setSettingsOpen(false)} />
-      )}
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

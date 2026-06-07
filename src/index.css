@@ -3,34 +3,87 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Resaltado para los resultados de búsqueda (Tantivy snippets) */
+/* Resaltado para snippets de Tantivy (resultados y visor) */
 mark {
-  @apply bg-yellow-200 text-black font-semibold rounded px-0.5;
+  @apply bg-amber-200 text-amber-950 font-semibold rounded px-0.5 ring-1 ring-amber-300/60;
 }
 
-/* Custom highlight colors per term in DocumentViewer */
 .mark-1 {
-  @apply bg-yellow-200 text-black font-semibold rounded px-0.5;
+  @apply bg-amber-200 text-amber-950 font-semibold rounded px-0.5 ring-1 ring-amber-300/60;
 }
 .mark-2 {
-  @apply bg-cyan-200 text-black font-semibold rounded px-0.5;
+  @apply bg-cyan-200 text-cyan-950 font-semibold rounded px-0.5 ring-1 ring-cyan-300/60;
 }
 .mark-3 {
-  @apply bg-green-200 text-black font-semibold rounded px-0.5;
+  @apply bg-emerald-200 text-emerald-950 font-semibold rounded px-0.5 ring-1 ring-emerald-300/60;
 }
 .mark-4 {
-  @apply bg-purple-200 text-black font-semibold rounded px-0.5;
+  @apply bg-violet-200 text-violet-950 font-semibold rounded px-0.5 ring-1 ring-violet-300/60;
 }
 
-/* Custom overrides and utilities for Ocean Library */
+/* Preview de snippet en árbol y dropdown */
+.snippet-preview {
+  @apply text-slate-600 leading-relaxed;
+  word-break: break-word;
+}
+
+.snippet-preview mark {
+  @apply bg-amber-200 text-amber-950;
+}
+
+.snippet-preview--compact {
+  @apply text-xs;
+}
+
+.snippet-preview--expanded {
+  @apply text-sm max-h-32 overflow-y-auto pr-1;
+}
+
 :root {
-  --app-bg: #f8fafc;
+  --app-bg: #f1f5f9;
+  --panel-border: #e2e8f0;
+  --ocean-accent: #0891b2;
 }
 
 body {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-slate-100 text-slate-800 antialiased;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 .app-container {
   @apply min-h-screen flex flex-col;
+}
+
+/* Scrollbars discretos en paneles */
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* Fade al truncar snippet */
+.snippet-fade {
+  position: relative;
+}
+
+.snippet-fade::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.5rem;
+  background: linear-gradient(to bottom, transparent, white);
+  pointer-events: none;
 }
