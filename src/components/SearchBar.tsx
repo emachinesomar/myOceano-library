@@ -184,21 +184,8 @@ export function SearchBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // Click outside to close help — use pointerdown to avoid race condition with toggle click
-  useEffect(() => {
-    if (!showHelp) return;
-    // Delay adding listener so the opening click doesn't immediately close it
-    const timer = setTimeout(() => {
-      const handler = (e: PointerEvent) => {
-        if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
-          setShowHelp(false);
-        }
-      };
-      document.addEventListener("pointerdown", handler);
-      return () => document.removeEventListener("pointerdown", handler);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [showHelp]);
+  // No global listener needed — the backdrop covers the entire viewport
+  // and handles click-outside-to-close directly via onPointerDown.
 
   const handleOperator = (op: BooleanOperator) => {
     const newQuery = applyOperator(query, op);
@@ -278,7 +265,10 @@ export function SearchBar() {
         <div className="relative shrink-0" ref={helpRef}>
           <button
             type="button"
-            onClick={() => setShowHelp((prev) => !prev)}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              setShowHelp((prev) => !prev);
+            }}
             aria-label="Ayuda de sintaxis"
             aria-expanded={showHelp}
             className={cn(
@@ -291,14 +281,13 @@ export function SearchBar() {
             ?
           </button>
 
-          {/* Backdrop + Popover */}
-          <div
-            className={cn(
-              "fixed inset-0 z-[59] transition-opacity duration-150",
-              showHelp ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-            onClick={() => setShowHelp(false)}
-          />
+          {/* Backdrop — only renders when open, click closes */}
+          {showHelp && (
+            <div
+              className="fixed inset-0 z-[59]"
+              onPointerDown={() => setShowHelp(false)}
+            />
+          )}
           <div
             className={cn(
               "absolute top-full right-0 mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-2xl z-[60] overflow-hidden transition-all duration-150 origin-top-right",
